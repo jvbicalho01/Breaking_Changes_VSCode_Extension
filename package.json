@@ -1,6 +1,6 @@
 {
-  "name": "helloworld",
-  "displayName": "HelloWorld",
+  "name": "breakingchange",
+  "displayName": "BreakingChange",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -14,9 +14,14 @@
   "contributes": {
     "commands": [
       {
-        "command": "extension.helloWorld",
-        "title": "Hello World"
+        "command": "extension.breakingChange",
+        "title": "Breaking Change"
       }
+    ],
+    "activationEvents": [
+        "onLanguage:javascript", 
+        "onLanguage:typescript",
+        "onLanguage:python"
     ]
   },
   "scripts": {
