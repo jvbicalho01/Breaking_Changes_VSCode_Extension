@@ -1,33 +1,39 @@
 import * as vscode from 'vscode';
+import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
+
+let client: LanguageClient;
 
 export function activate(context: vscode.ExtensionContext) {
-    // Registrar um comando que será executado ao abrir o arquivo
-    let disposable = vscode.commands.registerCommand('extension.breakingChange', () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return;
+    // Configuração do Pyright como servidor
+    const serverOptions: ServerOptions = {
+        command: 'pyright-langserver',  // Executável do Pyright
+        args: ['--stdio'],              // Configuração para comunicação por `stdio`
+        transport: TransportKind.stdio
+    };
+
+    // Configurações para o cliente de linguagem
+    const clientOptions: LanguageClientOptions = {
+        documentSelector: [{ scheme: 'file', language: 'python' }],
+        synchronize: {
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.py')
         }
+    };
 
-        const document = editor.document;
-        const text = document.getText();
-        const diagnostics: vscode.Diagnostic[] = [];
+    // Inicializa o cliente da linguagem
+    client = new LanguageClient(
+        'pyrightLanguageServer',
+        'Pyright Language Server',
+        serverOptions,
+        clientOptions
+    );
 
-        const functionCallRegex = /\b\w+\s*\(.*?\)/g;
-        let match;
-        while ((match = functionCallRegex.exec(text)) !== null) {
-            const startPos = document.positionAt(match.index);
-            const endPos = document.positionAt(match.index + match[0].length);
-            const range = new vscode.Range(startPos, endPos);
-
-            const diagnostic = new vscode.Diagnostic(range, `Função chamada: ${match[0]}`, vscode.DiagnosticSeverity.Warning);
-            diagnostics.push(diagnostic);
-        }
-
-        const diagnosticCollection = vscode.languages.createDiagnosticCollection('breakingChanges');
-        diagnosticCollection.set(document.uri, diagnostics);
-    });
-
-    context.subscriptions.push(disposable);
+    client.start();  // Inicia o cliente
+    context.subscriptions.push(client);
 }
 
-export function deactivate() {}
+export function deactivate(): Thenable<void> | undefined {
+    if (!client) {
+        return undefined;
+    }
+    return client.stop();  // Encerra o cliente ao desativar
+}
