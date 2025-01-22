@@ -1,17 +1,16 @@
 import * as vscode from 'vscode';
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
 
+// Inicializando o cliente de linguagem para Pyright
 let client: LanguageClient;
 
 export function activate(context: vscode.ExtensionContext) {
-    // Configuração do Pyright como servidor
+    // Configuração do cliente de linguagem
     const serverOptions: ServerOptions = {
-        command: 'pyright-langserver',  // Executável do Pyright
-        args: ['--stdio'],              // Configuração para comunicação por `stdio`
-        transport: TransportKind.stdio
+        run: { command: 'pyright-langserver', transport: TransportKind.stdio },
+        debug: { command: 'pyright-langserver', transport: TransportKind.stdio }
     };
 
-    // Configurações para o cliente de linguagem
     const clientOptions: LanguageClientOptions = {
         documentSelector: [{ scheme: 'file', language: 'python' }],
         synchronize: {
@@ -19,21 +18,60 @@ export function activate(context: vscode.ExtensionContext) {
         }
     };
 
-    // Inicializa o cliente da linguagem
-    client = new LanguageClient(
-        'pyrightLanguageServer',
-        'Pyright Language Server',
-        serverOptions,
-        clientOptions
-    );
+    // Criando o cliente de linguagem
+    client = new LanguageClient('python', 'Python Language Server', serverOptions, clientOptions);
 
-    client.start();  // Inicia o cliente
-    context.subscriptions.push(client);
+    // Iniciando o cliente
+    client.start();
+
+    // Registrando o provedor de hover
+    const hoverProvider = vscode.languages.registerHoverProvider('python', {
+        async provideHover(document, position, token) {
+            const word = document.getText(document.getWordRangeAtPosition(position));
+
+            // Enviando uma solicitação ao servidor de linguagem para obter a assinatura
+            try {
+                const response: any = await client.sendRequest('textDocument/hover', {
+                    textDocument: { uri: document.uri.toString() },
+                    position: { line: position.line, character: position.character }
+                });
+
+                if (response && response.contents) {
+                    const hoverMessage = new vscode.MarkdownString();
+
+                    // Adiciona o título "Assinatura"
+                    hoverMessage.appendMarkdown('**Assinatura:**\n\n');
+
+                    // Verifica o tipo de 'contents' e processa o retorno adequadamente
+                    if (Array.isArray(response.contents)) {
+                        response.contents.forEach((content: any) => {
+                            const text = content.value || content;
+                            console.log('Conteúdo capturado (Array):', text); // Exibe no console
+                            hoverMessage.appendMarkdown(text);
+                            hoverMessage.appendMarkdown('\n\n');
+                        });
+                    } else if (typeof response.contents === 'object' && response.contents.value) {
+                        console.log('Conteúdo capturado (Objeto):', response.contents.value); // Exibe no console
+                        hoverMessage.appendMarkdown(response.contents.value);
+                    } else if (typeof response.contents === 'string') {
+                        console.log('Conteúdo capturado (String):', response.contents); // Exibe no console
+                        hoverMessage.appendText(response.contents);
+                    }
+
+                    return new vscode.Hover(hoverMessage);
+                }
+            } catch (error) {
+                console.error('Erro ao processar hover:', error);
+            }
+        }
+    });
+
+    context.subscriptions.push(hoverProvider);
 }
 
-export function deactivate(): Thenable<void> | undefined {
+export function deactivate() {
     if (!client) {
         return undefined;
     }
-    return client.stop();  // Encerra o cliente ao desativar
+    return client.stop();
 }
