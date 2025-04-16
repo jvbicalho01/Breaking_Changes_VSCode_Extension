@@ -31,6 +31,13 @@ export function activate(context: vscode.ExtensionContext) {
         return all_functions.find(f => methodNameFromField(f.method) === name);
     }
 
+    function getParamsFromField(paramField: string): string[] {
+        return paramField
+            .split(',')
+            .map(p => p.trim().split(' ')[0]) // pega apenas o nome do parâmetro, antes dos ":" ou tipo
+            .filter(p => p.length > 0);
+    }
+
     function updateDecorations(editor: vscode.TextEditor) {
         if (!editor) return;
 
@@ -85,18 +92,33 @@ export function activate(context: vscode.ExtensionContext) {
                 if (match) {
                     const functionCall = match[0];
                     const params = match[1];
-                    const paramList = params.split(',').map(p => p.trim()).filter(p => p);
+                    const paramList = params.split(',').map(p => p.trim().split('=')[0].trim()).filter(p => p);
 
                     let hoverText = `**Chamada de função:**\n\n\`\`\`python\n${functionCall}\n\`\`\``;
+
                     if (paramList.length > 0) {
-                        hoverText += `\n\n**Parâmetros:**\n`;
+                        hoverText += `\n\n**Parâmetros utilizados:**\n`;
                         paramList.forEach(param => {
                             hoverText += `- \`${param}\`\n`;
                         });
                     }
 
                     const funcInfo = getFunctionInfo(word);
-                    hoverText += `\n\n---\n\n**DABC:** ${funcInfo ? `função encontrada (${funcInfo.dabc_module})` : 'função não encontrada'}`;
+                    if (funcInfo) {
+                        hoverText += `\n\n---\n\n**DABC:** função encontrada (${funcInfo.dabc_module})`;
+
+                        // Verificação de parâmetros
+                        const definedParams = getParamsFromField(funcInfo.param || '');
+                        const foundParams = paramList.filter(p => definedParams.includes(p));
+
+                        if (foundParams.length > 0) {
+                            hoverText += `\n- Parâmetro(s) encontrado(s): ${foundParams.map(p => `\`${p}\``).join(', ')}`;
+                        } else {
+                            hoverText += `\n- Nenhum parâmetro encontrado`;
+                        }
+                    } else {
+                        hoverText += `\n\n---\n\n**DABC:** função não encontrada`;
+                    }
 
                     return new vscode.Hover(hoverText);
                 }
