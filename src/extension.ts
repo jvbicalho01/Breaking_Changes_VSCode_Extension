@@ -121,7 +121,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
 
                     const funcInfo = getFunctionInfo(word);
-                    hoverText += `\n\n---\n\n**DABC:** ${funcInfo ? `função encontrada (${funcInfo.dabc_module})` : 'função não encontrada'}`;
+                    hoverText += `\n\n---\n\n**DABC:** ${funcInfo ? `função encontrada` : 'função não encontrada'}`;
 
                     if (funcInfo?.param) {
                         const methodParams = getMethodParams(funcInfo.method);
@@ -135,7 +135,7 @@ export function activate(context: vscode.ExtensionContext) {
                         } else if (methodParamIndex >= 0 && posParams.length > methodParamIndex) {
                             hoverText += `\n\n✅ parâmetro \`${methodParam}\` passado (forma posicional)`;
                         } else {
-                            hoverText += `\n\n⚠️ parâmetro \`${methodParam}\` não passado - potencial DABC encontrado`;
+                            hoverText += `\n\n⚠️ parâmetro \`${methodParam}\` não passado - potencial DABC encontrado (${funcInfo.dabc_module})`;
                         }
                     }
 
