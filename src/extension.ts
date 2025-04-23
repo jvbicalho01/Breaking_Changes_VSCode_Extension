@@ -30,13 +30,17 @@ export function activate(context: vscode.ExtensionContext) {
         return all_functions.find(f => methodNameFromField(f.method) === name);
     }
 
+    function getParamsFromField(param: string): string {
+        const match = param.match(/^\s*([\w_]+)/);
+        return match ? match[1] : '';
+    }
+
     function updateDecorations(editor: vscode.TextEditor) {
         if (!editor) return;
 
         const text = editor.document.getText();
         const functionCallPattern = /\b\w+\s*\(/g;
         const redRanges: vscode.Range[] = [];
-        const greenRanges: vscode.Range[] = [];
 
         let match;
         while ((match = functionCallPattern.exec(text)) !== null) {
@@ -47,13 +51,11 @@ export function activate(context: vscode.ExtensionContext) {
             const functionName = extractFunctionName(match[0]);
             if (functionName && getFunctionInfo(functionName)) {
                 redRanges.push(range);
-            } else {
-                greenRanges.push(range);
             }
         }
 
         editor.setDecorations(redUnderline, redRanges);
-        editor.setDecorations(greenUnderline, greenRanges);
+        editor.setDecorations(greenUnderline, []);
     }
 
     vscode.window.onDidChangeActiveTextEditor(editor => {
@@ -83,12 +85,10 @@ export function activate(context: vscode.ExtensionContext) {
 
                 if (match) {
                     const functionCall = match[0];
-                    const rawParams = match[1];
-                    const paramList = rawParams.split(',').map(p => p.trim()).filter(p => p.includes('='));
-                    const passedParamNames = paramList.map(p => p.split('=')[0].trim());
+                    const params = match[1];
+                    const paramList = params.split(',').map(p => p.split('=')[0].trim()).filter(p => p);
 
                     let hoverText = `**Chamada de função:**\n\n\`\`\`python\n${functionCall}\n\`\`\``;
-
                     if (paramList.length > 0) {
                         hoverText += `\n\n**Parâmetros passados:**\n`;
                         paramList.forEach(param => {
@@ -97,23 +97,17 @@ export function activate(context: vscode.ExtensionContext) {
                     }
 
                     const funcInfo = getFunctionInfo(word);
-                    if (funcInfo) {
-                        hoverText += `\n\n---\n\n**DABC:** função encontrada (${funcInfo.dabc_module})`;
+                    hoverText += `\n\n---\n\n**DABC:** ${funcInfo ? `função encontrada (${funcInfo.dabc_module})` : 'função não encontrada'}`;
 
-                        if (funcInfo.param) {
-                            const dabcParamMatch = funcInfo.param.match(/\b(\w+)/);
-                            const dabcParamName = dabcParamMatch ? dabcParamMatch[1] : null;
-
-                            if (dabcParamName) {
-                                if (passedParamNames.includes(dabcParamName)) {
-                                    hoverText += `\n\n✅ parâmetro \`${dabcParamName}\` passado`;
-                                } else {
-                                    hoverText += `\n\n⚠️ parâmetro \`${dabcParamName}\` não passado - potencial DABC encontrado`;
-                                }
+                    if (funcInfo && funcInfo.param) {
+                        const paramField = getParamsFromField(funcInfo.param);
+                        if (paramField) {
+                            if (paramList.includes(paramField)) {
+                                hoverText += `\n\n✅ parâmetro \`${paramField}\` passado`;
+                            } else {
+                                hoverText += `\n\n⚠️ parâmetro \`${paramField}\` não passado - potencial DABC encontrado`;
                             }
                         }
-                    } else {
-                        hoverText += `\n\n**DABC:** função não encontrada`;
                     }
 
                     return new vscode.Hover(hoverText);
