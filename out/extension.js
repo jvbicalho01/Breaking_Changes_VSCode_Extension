@@ -5,7 +5,7 @@ exports.deactivate = deactivate;
 const vscode = require("vscode");
 const dabc_functions_1 = require("./dabc_functions");
 function activate(context) {
-    const greenUnderline = vscode.window.createTextEditorDecorationType({
+    const redUnderline = vscode.window.createTextEditorDecorationType({
         textDecoration: 'underline wavy red'
     });
     const all_functions = [
@@ -43,7 +43,7 @@ function activate(context) {
             return;
         const text = editor.document.getText();
         const functionCallPattern = /\b(?:\w+\.)?(\w+)\s*\(([^)]*)\)/g;
-        const greenRanges = [];
+        const redRanges = [];
         let match;
         while ((match = functionCallPattern.exec(text)) !== null) {
             const fullMatch = match[0];
@@ -63,10 +63,10 @@ function activate(context) {
             const methodParamIndex = methodParams.indexOf(methodParam);
             const wasPassed = passedParams.includes(methodParam) || (methodParamIndex >= 0 && posParams.length > methodParamIndex);
             if (!wasPassed) {
-                greenRanges.push(range);
+                redRanges.push(range);
             }
         }
-        editor.setDecorations(greenUnderline, greenRanges);
+        editor.setDecorations(redUnderline, redRanges);
     }
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor) {
@@ -102,7 +102,7 @@ function activate(context) {
                         });
                     }
                     const funcInfo = getFunctionInfo(word);
-                    hoverText += `\n\n---\n\n**DABC:** ${funcInfo ? `função encontrada (${funcInfo.dabc_module})` : 'função não encontrada'}`;
+                    hoverText += `\n\n---\n\n**DABC:** ${funcInfo ? `função encontrada` : 'função não encontrada'}`;
                     if (funcInfo === null || funcInfo === void 0 ? void 0 : funcInfo.param) {
                         const methodParams = getMethodParams(funcInfo.method);
                         const methodParam = funcInfo.param.split(':')[0].trim();
@@ -116,7 +116,7 @@ function activate(context) {
                             hoverText += `\n\n✅ parâmetro \`${methodParam}\` passado (forma posicional)`;
                         }
                         else {
-                            hoverText += `\n\n⚠️ parâmetro \`${methodParam}\` não passado - potencial DABC encontrado`;
+                            hoverText += `\n\n⚠️ parâmetro \`${methodParam}\` não passado - potencial DABC encontrado (${funcInfo.dabc_module})`;
                         }
                     }
                     return new vscode.Hover(hoverText);

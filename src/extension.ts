@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { numpy_functions, pandas_functions, sklearn_functions, DABC_Functions } from './dabc_functions';
 
 export function activate(context: vscode.ExtensionContext) {
-    const greenUnderline = vscode.window.createTextEditorDecorationType({
+    const redUnderline = vscode.window.createTextEditorDecorationType({
         textDecoration: 'underline wavy red'
     });
 
@@ -48,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         const text = editor.document.getText();
         const functionCallPattern = /\b(?:\w+\.)?(\w+)\s*\(([^)]*)\)/g;
-        const greenRanges: vscode.Range[] = [];
+        const redRanges: vscode.Range[] = [];
 
         let match;
         while ((match = functionCallPattern.exec(text)) !== null) {
@@ -75,11 +75,11 @@ export function activate(context: vscode.ExtensionContext) {
             const wasPassed = passedParams.includes(methodParam) || (methodParamIndex >= 0 && posParams.length > methodParamIndex);
 
             if (!wasPassed) {
-                greenRanges.push(range);
+                redRanges.push(range);
             }
         }
 
-        editor.setDecorations(greenUnderline, greenRanges);
+        editor.setDecorations(redUnderline, redRanges);
     }
 
     vscode.window.onDidChangeActiveTextEditor(editor => {
