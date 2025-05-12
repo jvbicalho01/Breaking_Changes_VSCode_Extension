@@ -9,21 +9,19 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+        "onLanguage:python"
+    ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "extension.breakingChange",
-        "title": "Breaking Change"
-      }
-    ],
-    "activationEvents": [
-        "onLanguage:javascript", 
-        "onLanguage:typescript",
-        "onLanguage:python"
-    ]
-  },
+        "languages": [
+            {
+                "id": "python",
+                "extensions": [".py"],
+                "aliases": ["Python"]
+            }
+        ]
+    },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
