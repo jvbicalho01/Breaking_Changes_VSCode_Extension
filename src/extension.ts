@@ -131,11 +131,11 @@ export function activate(context: vscode.ExtensionContext) {
                         const methodParamIndex = methodParams.indexOf(methodParam);
 
                         if (passedParams.includes(methodParam)) {
-                            hoverText += `\n\n✅ parâmetro \`${methodParam}\` passado`;
+                            hoverText += `\n\nParâmetro \`${methodParam}\` passado`;
                         } else if (methodParamIndex >= 0 && posParams.length > methodParamIndex) {
-                            hoverText += `\n\n✅ parâmetro \`${methodParam}\` passado (forma posicional)`;
+                            hoverText += `\n\nParâmetro \`${methodParam}\` passado (forma posicional)`;
                         } else {
-                            hoverText += `\n\n⚠️ parâmetro \`${methodParam}\` não passado - potencial DABC encontrado (${funcInfo.dabc_module})`;
+                            hoverText += `\n\nParâmetro \`${methodParam}\` não passado - potencial DABC encontrado`;
                         }
                     }
 
