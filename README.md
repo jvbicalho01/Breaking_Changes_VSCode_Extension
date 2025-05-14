@@ -104,6 +104,7 @@ npm run compile
 ### 4. Rode a extensão
 
 - Pressione `F5` no VSCode para abrir uma nova janela de desenvolvimento com a extensão ativada.
+    - Na primeira execução pode aparecer algumas opções, é só selecionar a 'VS Code ... Developer', ou dar o comando `Ctrl+Shift+P` e selecione a opção 'Debug: Start Debugging
 - Abra um arquivo `.py` e veja a mágica acontecer!
 
 ---
