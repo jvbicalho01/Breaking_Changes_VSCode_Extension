@@ -1,7 +1,7 @@
 
-# 🧩 DABC Parameter Checker - VSCode Extension
+# 🧩 DABC Matcher - VSCode Extension
 
-**DABC Parameter Checker** é uma extensão para o Visual Studio Code que identifica chamadas de funções específicas das bibliotecas **NumPy**, **Pandas** e **Scikit-learn** (sklearn), verificando se parâmetros considerados importantes (chamados de parâmetros **DABC**) foram **omitidos**.
+**DABC Matcher** é uma extensão para o Visual Studio Code que identifica chamadas de funções específicas das bibliotecas **NumPy**, **Pandas** e **Scikit-learn** (sklearn), verificando se parâmetros considerados importantes (chamados de parâmetros **DABC**) foram **omitidos**.
 
 O foco é apoiar boas práticas de uso dessas bibliotecas, alertando o desenvolvedor sobre chamadas potencialmente incompletas ou que podem gerar comportamentos inesperados.
 
