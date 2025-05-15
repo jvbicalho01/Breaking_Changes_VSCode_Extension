@@ -22,15 +22,12 @@ function activate(context) {
         return match ? match[1] : null;
     }
     function getFunctionInfo(name) {
-        // Tenta achar função normal primeiro
         let func = all_functions.find(f => methodNameFromField(f.method) === name);
         if (func)
             return func;
-        // Se não achou, tenta encontrar construtor __init__ para classes com o nome da função
         func = all_functions.find(f => {
             if (!f.class)
                 return false;
-            // Extrai nome da classe antes do "(" caso tenha
             const className = f.class.split('(')[0].trim();
             return className === name && f.method.startsWith('__init__(');
         });
@@ -70,7 +67,6 @@ function activate(context) {
             const methodParams = getMethodParams(funcInfo.method);
             const methodParam = funcInfo.param.split(':')[0].trim();
             const passedParams = paramsInCall.match(/\b\w+(?=\s*=)/g) || [];
-            // Identifica chamada posicional
             const posParams = paramsInCall.split(',').map(p => p.trim()).filter(p => p && !p.includes('='));
             const methodParamIndex = methodParams.indexOf(methodParam);
             const wasPassed = passedParams.includes(methodParam) || (methodParamIndex >= 0 && posParams.length > methodParamIndex);

@@ -3,7 +3,8 @@
     "module": "commonjs",
     "target": "es6",
     "outDir": "out",
-    "strict": true
+    "strict": true,
+    "removeComments": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", ".vscode-test"]
