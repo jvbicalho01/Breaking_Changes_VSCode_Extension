@@ -5,18 +5,13 @@ exports.deactivate = deactivate;
 const vscode = require("vscode");
 const dabc_functions_1 = require("./dabc_functions");
 function activate(context) {
-    const redUnderline = vscode.window.createTextEditorDecorationType({
-        textDecoration: 'underline wavy red'
-    });
+    const diagnosticCollection = vscode.languages.createDiagnosticCollection('dabc');
+    context.subscriptions.push(diagnosticCollection);
     const all_functions = [
-        ...dabc_functions_1.numpy_functions,
-        ...dabc_functions_1.pandas_functions,
-        ...dabc_functions_1.sklearn_functions
+        ...dabc_functions_1.numpy_functions.map(f => (Object.assign(Object.assign({}, f), { library: 'numpy' }))),
+        ...dabc_functions_1.pandas_functions.map(f => (Object.assign(Object.assign({}, f), { library: 'pandas' }))),
+        ...dabc_functions_1.sklearn_functions.map(f => (Object.assign(Object.assign({}, f), { library: 'sklearn' })))
     ];
-    function extractFunctionName(code) {
-        const match = code.match(/\b(\w+)\s*\(/);
-        return match ? match[1] : null;
-    }
     function methodNameFromField(method) {
         const match = method.match(/\b(\w+)\s*\(/);
         return match ? match[1] : null;
@@ -37,25 +32,22 @@ function activate(context) {
         const match = method.match(/\(([^)]*)\)/);
         if (!match)
             return [];
-        const paramsRaw = match[1]
-            .split(',')
-            .map(p => p.trim())
-            .filter(p => p && !p.includes('=') && !/^self\s*$/i.test(p));
-        const withDefaults = match[1]
+        return match[1]
             .split(',')
             .map(p => p.trim().split('=')[0].trim())
             .filter(p => p && !/^self$/i.test(p));
-        return withDefaults;
     }
-    function updateDecorations(editor) {
+    function getLibraryName(func) {
+        return func.library || 'biblioteca desconhecida';
+    }
+    function updateDiagnostics(editor) {
         if (!editor)
             return;
         const text = editor.document.getText();
         const functionCallPattern = /\b(?:\w+\.)?(\w+)\s*\(([^)]*)\)/g;
-        const redRanges = [];
+        const diagnostics = [];
         let match;
         while ((match = functionCallPattern.exec(text)) !== null) {
-            const fullMatch = match[0];
             const functionName = match[1];
             const paramsInCall = match[2];
             const startPos = editor.document.positionAt(match.index);
@@ -71,20 +63,25 @@ function activate(context) {
             const methodParamIndex = methodParams.indexOf(methodParam);
             const wasPassed = passedParams.includes(methodParam) || (methodParamIndex >= 0 && posParams.length > methodParamIndex);
             if (!wasPassed) {
-                redRanges.push(range);
+                const libName = getLibraryName(funcInfo);
+                const msg = `[DABC] O valor-padrão do argumento "${methodParam}" foi redefinido na versão ${funcInfo.version}. ` +
+                    `Atribua um valor a este argumento para evitar problemas com diferentes versões da biblioteca ${libName}.`;
+                const diagnostic = new vscode.Diagnostic(range, msg, vscode.DiagnosticSeverity.Warning);
+                diagnostic.source = 'DABC';
+                diagnostics.push(diagnostic);
             }
         }
-        editor.setDecorations(redUnderline, redRanges);
+        diagnosticCollection.set(editor.document.uri, diagnostics);
     }
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor) {
-            updateDecorations(editor);
+            updateDiagnostics(editor);
         }
     }, null, context.subscriptions);
     vscode.workspace.onDidChangeTextDocument(event => {
         const editor = vscode.window.activeTextEditor;
         if (editor && event.document === editor.document) {
-            updateDecorations(editor);
+            updateDiagnostics(editor);
         }
     }, null, context.subscriptions);
     const supportedLanguages = ['python'];
@@ -110,21 +107,17 @@ function activate(context) {
                         });
                     }
                     const funcInfo = getFunctionInfo(word);
-                    hoverText += `\n\n---\n\n**DABC:** ${funcInfo ? `função encontrada` : 'função não encontrada'}`;
                     if (funcInfo === null || funcInfo === void 0 ? void 0 : funcInfo.param) {
                         const methodParams = getMethodParams(funcInfo.method);
                         const methodParam = funcInfo.param.split(':')[0].trim();
                         const passedParams = params.match(/\b\w+(?=\s*=)/g) || [];
                         const posParams = params.split(',').map(p => p.trim()).filter(p => p && !p.includes('='));
                         const methodParamIndex = methodParams.indexOf(methodParam);
-                        if (passedParams.includes(methodParam)) {
-                            hoverText += `\n\nParâmetro \`${methodParam}\` passado`;
-                        }
-                        else if (methodParamIndex >= 0 && posParams.length > methodParamIndex) {
-                            hoverText += `\n\nParâmetro \`${methodParam}\` passado (forma posicional)`;
-                        }
-                        else {
-                            hoverText += `\n\nParâmetro \`${methodParam}\` não passado - potencial DABC encontrado`;
+                        const wasPassed = passedParams.includes(methodParam) || (methodParamIndex >= 0 && posParams.length > methodParamIndex);
+                        if (!wasPassed) {
+                            const libName = getLibraryName(funcInfo);
+                            hoverText += `\n\n**[DABC]** O valor-padrão do argumento \`${methodParam}\` foi redefinido na versão \`${funcInfo.version}\`. ` +
+                                `Atribua um valor a este argumento para evitar problemas com diferentes versões da biblioteca \`${libName}\`.`;
                         }
                     }
                     return new vscode.Hover(hoverText);

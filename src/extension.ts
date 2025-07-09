@@ -2,20 +2,14 @@ import * as vscode from 'vscode';
 import { numpy_functions, pandas_functions, sklearn_functions, DABC_Functions } from './dabc_functions';
 
 export function activate(context: vscode.ExtensionContext) {
-    const redUnderline = vscode.window.createTextEditorDecorationType({
-        textDecoration: 'underline wavy red'
-    });
+    const diagnosticCollection = vscode.languages.createDiagnosticCollection('dabc');
+    context.subscriptions.push(diagnosticCollection);
 
     const all_functions: DABC_Functions[] = [
-        ...numpy_functions,
-        ...pandas_functions,
-        ...sklearn_functions
+        ...numpy_functions.map(f => ({ ...f, library: 'numpy' })),
+        ...pandas_functions.map(f => ({ ...f, library: 'pandas' })),
+        ...sklearn_functions.map(f => ({ ...f, library: 'sklearn' }))
     ];
-
-    function extractFunctionName(code: string): string | null {
-        const match = code.match(/\b(\w+)\s*\(/);
-        return match ? match[1] : null;
-    }
 
     function methodNameFromField(method: string): string | null {
         const match = method.match(/\b(\w+)\s*\(/);
@@ -23,15 +17,12 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     function getFunctionInfo(name: string): DABC_Functions | undefined {
-        // Tenta achar função normal primeiro
         let func = all_functions.find(f => methodNameFromField(f.method) === name);
 
         if (func) return func;
 
-        // Se não achou, tenta encontrar construtor __init__ para classes com o nome da função
         func = all_functions.find(f => {
             if (!f.class) return false;
-            // Extrai nome da classe antes do "(" caso tenha
             const className = f.class.split('(')[0].trim();
             return className === name && f.method.startsWith('__init__(');
         });
@@ -43,29 +34,25 @@ export function activate(context: vscode.ExtensionContext) {
         const match = method.match(/\(([^)]*)\)/);
         if (!match) return [];
 
-        const paramsRaw = match[1]
-            .split(',')
-            .map(p => p.trim())
-            .filter(p => p && !p.includes('=') && !/^self\s*$/i.test(p));
-
-        const withDefaults = match[1]
+        return match[1]
             .split(',')
             .map(p => p.trim().split('=')[0].trim())
             .filter(p => p && !/^self$/i.test(p));
-
-        return withDefaults;
     }
 
-    function updateDecorations(editor: vscode.TextEditor) {
+    function getLibraryName(func: DABC_Functions): string {
+        return func.library || 'biblioteca desconhecida';
+    }
+
+    function updateDiagnostics(editor: vscode.TextEditor) {
         if (!editor) return;
 
         const text = editor.document.getText();
         const functionCallPattern = /\b(?:\w+\.)?(\w+)\s*\(([^)]*)\)/g;
-        const redRanges: vscode.Range[] = [];
+        const diagnostics: vscode.Diagnostic[] = [];
 
         let match;
         while ((match = functionCallPattern.exec(text)) !== null) {
-            const fullMatch = match[0];
             const functionName = match[1];
             const paramsInCall = match[2];
 
@@ -78,33 +65,40 @@ export function activate(context: vscode.ExtensionContext) {
 
             const methodParams = getMethodParams(funcInfo.method);
             const methodParam = funcInfo.param.split(':')[0].trim();
-
             const passedParams: string[] = paramsInCall.match(/\b\w+(?=\s*=)/g) || [];
-
-            // Identifica chamada posicional
             const posParams = paramsInCall.split(',').map(p => p.trim()).filter(p => p && !p.includes('='));
             const methodParamIndex = methodParams.indexOf(methodParam);
 
             const wasPassed = passedParams.includes(methodParam) || (methodParamIndex >= 0 && posParams.length > methodParamIndex);
 
             if (!wasPassed) {
-                redRanges.push(range);
+                const libName = getLibraryName(funcInfo);
+                const msg = `[DABC] O valor-padrão do argumento "${methodParam}" foi redefinido na versão ${funcInfo.version}. ` +
+                            `Atribua um valor a este argumento para evitar problemas com diferentes versões da biblioteca ${libName}.`;
+
+                const diagnostic = new vscode.Diagnostic(
+                    range,
+                    msg,
+                    vscode.DiagnosticSeverity.Warning
+                );
+                diagnostic.source = 'DABC';
+                diagnostics.push(diagnostic);
             }
         }
 
-        editor.setDecorations(redUnderline, redRanges);
+        diagnosticCollection.set(editor.document.uri, diagnostics);
     }
 
     vscode.window.onDidChangeActiveTextEditor(editor => {
         if (editor) {
-            updateDecorations(editor);
+            updateDiagnostics(editor);
         }
     }, null, context.subscriptions);
 
     vscode.workspace.onDidChangeTextDocument(event => {
         const editor = vscode.window.activeTextEditor;
         if (editor && event.document === editor.document) {
-            updateDecorations(editor);
+            updateDiagnostics(editor);
         }
     }, null, context.subscriptions);
 
@@ -134,8 +128,6 @@ export function activate(context: vscode.ExtensionContext) {
                     }
 
                     const funcInfo = getFunctionInfo(word);
-                    hoverText += `\n\n---\n\n**DABC:** ${funcInfo ? `função encontrada` : 'função não encontrada'}`;
-
                     if (funcInfo?.param) {
                         const methodParams = getMethodParams(funcInfo.method);
                         const methodParam = funcInfo.param.split(':')[0].trim();
@@ -143,12 +135,13 @@ export function activate(context: vscode.ExtensionContext) {
                         const posParams = params.split(',').map(p => p.trim()).filter(p => p && !p.includes('='));
                         const methodParamIndex = methodParams.indexOf(methodParam);
 
-                        if (passedParams.includes(methodParam)) {
-                            hoverText += `\n\nParâmetro \`${methodParam}\` passado`;
-                        } else if (methodParamIndex >= 0 && posParams.length > methodParamIndex) {
-                            hoverText += `\n\nParâmetro \`${methodParam}\` passado (forma posicional)`;
-                        } else {
-                            hoverText += `\n\nParâmetro \`${methodParam}\` não passado - potencial DABC encontrado`;
+                        const wasPassed = passedParams.includes(methodParam) || (methodParamIndex >= 0 && posParams.length > methodParamIndex);
+
+                        if (!wasPassed) {
+                            const libName = getLibraryName(funcInfo);
+
+                            hoverText += `\n\n**[DABC]** O valor-padrão do argumento \`${methodParam}\` foi redefinido na versão \`${funcInfo.version}\`. ` +
+                                         `Atribua um valor a este argumento para evitar problemas com diferentes versões da biblioteca \`${libName}\`.`;
                         }
                     }
 

@@ -3,7 +3,7 @@
   "displayName": "DABC Checker",
   "description": "Identifica potenciais Default Argument Breaking Changes (DABC) em funções de NumPy, Pandas e Sklearn.",
 
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.95.0"
   },

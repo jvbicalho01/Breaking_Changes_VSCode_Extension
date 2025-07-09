@@ -9,6 +9,7 @@ export interface DABC_Functions {
   dabc_module: string;
   reason: string;
   effect: string;
+  library?: string;
 }
 
 export const numpy_functions: DABC_Functions[] = [
